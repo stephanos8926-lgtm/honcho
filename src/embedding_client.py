@@ -195,6 +195,18 @@ class _EmbeddingClient:
             self.max_embedding_tokens: int = min(max_input_tokens, 2048)
             # Gemini batch size is not documented, using conservative estimate
             self.max_batch_size: int = 100
+        elif self.transport == "rw_inference":
+            # RAPIDWEBS FORK: RW InferenceEngine (local server) uses an
+            # OpenAI-compatible API at a configurable base_url. No API key is
+            # required since it runs on the local network with network-level
+            # access control. The default model is bge-small-en-v1.5 (384-dim).
+            # See RAPIDWEBS.README.md for configuration requirements.
+            self.client = AsyncOpenAI(
+                api_key=config.api_key or "sk-no-auth-required",
+                base_url=(config.base_url or "http://localhost:8300/v1"),
+            )
+            self.max_embedding_tokens = max_input_tokens
+            self.max_batch_size = 2048
         else:  # openai
             if not config.api_key:
                 raise ValueError("OpenAI API key is required")

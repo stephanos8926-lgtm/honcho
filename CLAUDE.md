@@ -303,3 +303,39 @@ src/
 ### Notes
 
 - Always use `uv run` or `uv` to prefix any commands related to python to ensure you use the virtual environment
+
+---
+
+## RAPIDWEBS FORK — Custom Changes
+
+This repository is a fork of `plastic-labs/honcho` maintained by RapidWebs Enterprise.
+The following changes are unique to our fork. See `RAPIDWEBS.README.md` for the full
+changelog with rationale and configuration details.
+
+### 1. DERIVER_FLUSH_ENABLED defaults to True
+
+**Files:** `src/config.py:888`
+
+The upstream default (`False`) batches representation work until 1024 tokens
+accumulate, which never happens in low-volume self-hosted deployments — memory
+pipeline appears broken. We changed the default to `True` so work processes
+immediately.
+
+### 2. Added "rw_inference" embedding transport
+
+**Files:**
+- `src/config.py:26` — `EmbeddingTransport` type
+- `src/config.py:38` — default model
+- `src/config.py:490` — default API key (None)
+- `src/embedding_client.py:198` — client init
+
+Added `"rw_inference"` as a named embedding transport for RW InferenceEngine,
+a local Rust/ONNX server providing bge-small-en-v1.5 embeddings and
+cross-encoder reranking. Uses OpenAI-compatible API without requiring an API key.
+
+**Required config:**
+```env
+EMBEDDING_MODEL_CONFIG__TRANSPORT=rw_inference
+EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL=http://<rw-ie-host>:8300/v1
+EMBEDDING_VECTOR_DIMENSIONS=384
+```

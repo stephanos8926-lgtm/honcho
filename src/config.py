@@ -23,7 +23,7 @@ if not os.getenv("PYTHON_DOTENV_DISABLED"):
 logger = logging.getLogger(__name__)
 
 ModelTransport = Literal["anthropic", "openai", "gemini"]
-EmbeddingTransport = Literal["openai", "gemini"]
+EmbeddingTransport = Literal["openai", "gemini", "rw_inference"]
 EmbeddingDimensionsMode = Literal["auto", "always", "never"]
 
 # OpenAI-compatible models that reject the `dimensions=` request parameter.
@@ -35,6 +35,11 @@ _EMBEDDING_KNOWN_REJECTING_MODELS: frozenset[str] = frozenset(
 def _default_embedding_model_for_transport(transport: EmbeddingTransport) -> str:
     if transport == "gemini":
         return "gemini-embedding-001"
+    if transport == "rw_inference":
+        # RAPIDWEBS FORK: RW InferenceEngine serves bge-small-en-v1.5 by default.
+        # This produces 384-dim vectors, which must match EMBEDDING_VECTOR_DIMENSIONS.
+        # See RAPIDWEBS.README.md for configuration requirements.
+        return "bge-small-en-v1.5"
     return "text-embedding-3-small"
 
 
@@ -487,6 +492,11 @@ def _default_embedding_api_key(transport: EmbeddingTransport) -> str | None:
         return settings.LLM.OPENAI_API_KEY
     if transport == "gemini":
         return settings.LLM.GEMINI_API_KEY
+    if transport == "rw_inference":
+        # RAPIDWEBS FORK: RW InferenceEngine runs locally on the LAN with no API key.
+        # Authentication is handled by network-level access control.
+        return None
+    return None
 
 
 def resolve_embedding_model_config(
@@ -884,8 +894,14 @@ class DeriverSettings(HonchoSettings):
         1800
     )
 
-    # When enabled, bypasses the batch token threshold and processes work immediately
-    FLUSH_ENABLED: bool = False
+    # When enabled, bypasses the batch token threshold and processes work immediately.
+    # RAPIDWEBS FORK: Changed default from False to True. The upstream default (False)
+    # batches representation work until 1024 tokens accumulate, which never happens in
+    # low-volume self-hosted deployments — causing observations to silently never get
+    # written. Self-hosted users should always have FLUSH_ENABLED=true so the deriver
+    # processes work units as soon as any new messages arrive, even if they're small.
+    # See RAPIDWEBS.README.md for the full rationale.
+    FLUSH_ENABLED: bool = True
 
     @model_validator(mode="before")
     @classmethod
