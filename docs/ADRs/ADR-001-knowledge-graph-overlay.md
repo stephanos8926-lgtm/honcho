@@ -1,32 +1,37 @@
-# ADR-001: Knowledge Graph Overlay on Peer Model
+# ADR-001 v2.0: Knowledge Graph Overlay on Peer Model
 
-## Status: Draft
+## Status: Draft v2.0 (Post-Audit Revision)
 
 ## Context
 Honcho excels at social/peer memory but lacks entity-relationship reasoning.
-Competitors (Hindsight, Mem0 Pro) have knowledge graphs for multi-hop queries.
-Our fork has RW InferenceEngine for local LLM calls, making entity extraction
-cost-effective.
+Our fork has RW InferenceEngine for local entity extraction. The v1 spec
+missed peer↔entity linking, type enforcement, indexing strategy, and caching.
 
 ## Decision
-Add a knowledge graph layer (entities, relationships, typed edges) as an
-extension to the existing peer/observation model. The graph is an overlay, not
-a replacement — existing Honcho abstractions remain unchanged.
+Add a knowledge graph overlay with:
+1. Entity types registry (validated, not free-text)
+2. Relationship types controlled vocabulary
+3. Peer→Entity linking via `kg_entities.peer_name` field
+4. Two-tier cache (L1 in-memory LRU + L2 query log)
+5. Temporal filtering with point-in-time snapshots
+6. Compound query support (type + relationship + time + confidence)
+7. Extraction timeout (15s) + retry (2 attempts) + confidence decay
 
 ## Consequences
-- Positive: Multi-hop reasoning, temporal queries, Dialectic gains kg_query tool
-- Positive: Differentiates from Hindsight by combining social memory + KG
+- Positive: Multi-hop reasoning, cross-entity queries, temporal queries
+- Positive: Unique "social knowledge graph" (peer context + KG)
 - Positive: No new infrastructure (uses existing PG + RW IE)
-- Negative: Storage growth from KG tables (~10-20% over observation storage)
-- Negative: Entity extraction adds latency to Deriver pipeline
-- Risk: Entity resolution accuracy at small scale (mitigated by fuzzy matching)
+- Negative: ~10-20% storage growth from KG tables
+- Negative: Extraction latency adds ~300-500ms to Deriver per message
+- Risk: Entity resolution accuracy at small scale (fuzzy matching + PATCH endpoint)
 
 ## Compliance
-- Follows existing Honcho schema conventions (workspace-scoped, nanoid PKs)
-- Uses same OL/LLM provider as Deriver (no new provider types)
-- API endpoints follow existing `/v3/workspaces/{w}/...` pattern
+- All KG tables workspace-scoped (consistent with existing Honcho schema)
+- Types registries validated at startup
+- Extraction uses same structured-output pattern as existing Deriver
+- API endpoints follow `/v3/workspaces/{w}/kg/*` pattern
 
 ## References
-- SPEC-001: Knowledge Graph Overlay
-- Issue #590, #728 (community evidence for needed improvements)
-- Hindsight architecture (knowledge graph + temporal)
+- SPEC-001 v2.0 (this revision)
+- v1 audit: forward, reverse, adversarial reviews
+- Hindsight architecture (graph + temporal retrieval)
