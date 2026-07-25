@@ -903,6 +903,13 @@ class DeriverSettings(HonchoSettings):
     # See RAPIDWEBS.README.md for the full rationale.
     FLUSH_ENABLED: bool = True
 
+    # When enabled, runs the deriver as an asyncio background task inside the
+    # API process instead of as a separate worker process. Eliminates the need
+    # for a separate `python -m src.deriver` process. The queue is still
+    # PostgreSQL-backed (no Redis required for queue operations).
+    # Default: False for backward compatibility.
+    IN_PROCESS_MODE: bool = False
+
     @model_validator(mode="before")
     @classmethod
     def _merge_model_config_defaults(cls, data: Any) -> Any:

@@ -18,6 +18,7 @@ from src._version import HONCHO_VERSION
 from src.cache.client import close_cache, init_cache
 from src.config import settings
 from src.db import engine, register_db_query_instrumentation, request_context
+from src.deriver.in_process import InProcessQueueManager
 from src.exceptions import HonchoException
 from src.routers import (
     conclusions,
@@ -122,9 +123,21 @@ async def lifespan(_: FastAPI):
             "Error initializing cache in api process; proceeding without cache: %s", e
         )
 
+    # Start in-process deriver if configured
+    in_process_deriver: InProcessQueueManager | None = None
+    if settings.DERIVER.IN_PROCESS_MODE:
+        in_process_deriver = InProcessQueueManager()
+        await in_process_deriver.start()
+        logger.info("In-process deriver started (IN_PROCESS_MODE=true)")
+
     try:
         yield
     finally:
+        # Stop in-process deriver if running
+        if in_process_deriver:
+            await in_process_deriver.stop()
+            logger.info("In-process deriver stopped")
+
         # Import here to avoid circular import at module load time
         from src.vector_store import close_external_vector_store
 
