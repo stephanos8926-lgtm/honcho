@@ -10,7 +10,6 @@ from typing import Any
 
 from src.kg.graph import find_path, traverse
 from src.dependencies import tracked_db
-from src.utils.agent_tools import ToolContext
 
 
 KG_QUERY_TOOL_DEFINITION: dict[str, Any] = {
@@ -54,13 +53,13 @@ KG_QUERY_TOOL_DEFINITION: dict[str, Any] = {
 
 
 async def handle_kg_query(
-    ctx: ToolContext,
+    ctx: Any,
     tool_input: dict[str, Any],
 ) -> str:
     """Execute a KG query and return formatted results.
     
     Called by the Dialectic agent through the tool executor.
-    Extracts context from the ToolContext.
+    ctx: ToolContext from agent_tools.py (lazy-imported to avoid circular dep).
     """
     workspace_name = ctx.workspace_name
     entity = tool_input.get("entity", "")
