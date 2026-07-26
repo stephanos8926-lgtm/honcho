@@ -10,7 +10,7 @@ from collections import deque
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.kg.models import KGEntity, KGRelationship
@@ -172,8 +172,8 @@ async def find_path(
 
     # BFS with parent tracking
     visited: set[str] = set()
-    # parent_map: target_id -> (source_id, relationship)
-    parent: dict[str, tuple[str, KGRelationship]] = {}
+    # parent_map: neighbor_id -> (current_id, relationship, is_outgoing)
+    parent: dict[str, tuple[str, KGRelationship, bool]] = {}
     queue: deque[tuple[str, int]] = deque()
     queue.append((from_ent.id, 0))
     visited.add(from_ent.id)
@@ -191,22 +191,29 @@ async def find_path(
         if depth >= max_depth:
             continue
 
+        # Check BOTH directions: outgoing and incoming relationships
         rel_query = select(KGRelationship).where(
             KGRelationship.workspace_name == workspace_name,
-            KGRelationship.source_entity_id == current_id,
+            or_(
+                KGRelationship.source_entity_id == current_id,
+                KGRelationship.target_entity_id == current_id,
+            ),
             *type_filter,
         )
         result = await db.execute(rel_query)
         relationships = result.scalars().all()
 
         for rel in relationships:
-            target_id = rel.target_entity_id
-            if target_id not in visited:
-                visited.add(target_id)
-                parent[target_id] = (current_id, rel)
-                queue.append((target_id, depth + 1))
+            # Determine the connected entity ID based on direction
+            is_outgoing = (rel.source_entity_id == current_id)
+            neighbor_id = rel.target_entity_id if is_outgoing else rel.source_entity_id
 
-                if target_id == to_ent.id:
+            if neighbor_id not in visited:
+                visited.add(neighbor_id)
+                parent[neighbor_id] = (current_id, rel, is_outgoing)
+                queue.append((neighbor_id, depth + 1))
+
+                if neighbor_id == to_ent.id:
                     found = True
                     break
 
@@ -217,17 +224,23 @@ async def find_path(
     path: list[dict] = []
     current = to_ent.id
     while current in parent:
-        source_id, rel = parent[current]
+        source_id, rel, is_outgoing = parent[current]
         
-        # Fetch entity names
-        s = await db.execute(select(KGEntity).where(KGEntity.id == source_id))
-        t = await db.execute(select(KGEntity).where(KGEntity.id == current))
+        # Determine display direction based on relationship orientation
+        if is_outgoing:
+            disp_source, disp_target = source_id, current
+        else:
+            disp_source, disp_target = current, source_id
+        
+        # Fetch entity names for display
+        s = await db.execute(select(KGEntity).where(KGEntity.id == disp_source))
+        t = await db.execute(select(KGEntity).where(KGEntity.id == disp_target))
         source_entity = s.scalar_one_or_none()
         target_entity = t.scalar_one_or_none()
 
         path.insert(0, {
-            "source": source_entity.name if source_entity else source_id,
-            "target": target_entity.name if target_entity else current,
+            "source": source_entity.name if source_entity else disp_source,
+            "target": target_entity.name if target_entity else disp_target,
             "relationship_type": rel.relationship_type,
             "properties": rel.properties,
             "confidence": rel.confidence,
@@ -285,7 +298,7 @@ async def subgraph(
                 "confidence": entity.confidence,
             }
 
-        # Fetch relationships
+        # Fetch relationships with a hard cap
         r = await db.execute(
             select(KGRelationship).where(
                 KGRelationship.workspace_name == workspace_name,
@@ -293,6 +306,8 @@ async def subgraph(
             ).limit(limit)
         )
         for rel in r.scalars().all():
+            if len(edges) >= limit:
+                break
             edges.append({
                 "source": rel.source_entity_id,
                 "target": rel.target_entity_id,
