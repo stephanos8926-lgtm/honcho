@@ -29,6 +29,7 @@ from src.routers import (
     webhooks,
     workspaces,
 )
+from src.routers import kg as kg_router
 from src.startup import validate_embedding_schema
 from src.telemetry import (
     initialize_telemetry_async,
@@ -188,6 +189,7 @@ app.include_router(messages.router, prefix="/v3")
 app.include_router(conclusions.router, prefix="/v3")
 app.include_router(keys.router, prefix="/v3")
 app.include_router(webhooks.router, prefix="/v3")
+app.include_router(kg_router.router, prefix="/v3")
 
 # Prometheus metrics endpoint
 app.add_route("/metrics", metrics_endpoint, methods=["GET"])
