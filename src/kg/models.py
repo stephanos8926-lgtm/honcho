@@ -103,7 +103,7 @@ class KGRelationship(Base):
         DateTime(timezone=True), nullable=False, default=_utcnow
     )
     observation_id: Mapped[str | None] = mapped_column(
-        String, ForeignKey("observations.id", ondelete="SET NULL"), nullable=True
+        String, nullable=True
     )
     confidence: Mapped[float] = mapped_column(Float, default=1.0)
 

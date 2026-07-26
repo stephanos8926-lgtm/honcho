@@ -95,11 +95,6 @@ def upgrade() -> None:
             ["target_entity_id"],
             ["kg_entities.id"],
         ),
-        sa.ForeignKeyConstraint(
-            ["observation_id"],
-            ["observations.id"],
-            ondelete="SET NULL",
-        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "workspace_name",
