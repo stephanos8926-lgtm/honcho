@@ -1,0 +1,62 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["sh", "docker/entrypoint.sh"]
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      # ── RapidWebs Custom Configuration ──────────────────────────────
+      # Single-container mode: API + Deriver run in one process
+      DERIVER_IN_PROCESS_MODE: "true"
+      # Embedding via RW InferenceEngine (384-dim)
+      EMBEDDING_MODEL_CONFIG__TRANSPORT: "rw_inference"
+      EMBEDDING_MODEL_CONFIG__OVERRIDES__BASE_URL: "http://100.75.220.1:8300/v1"
+      EMBEDDING_VECTOR_DIMENSIONS: "384"
+      # Deriver: flush immediately (no batch threshold)
+      DERIVER_FLUSH_ENABLED: "true"
+      # Enable all memory features
+      PEER_CARD_ENABLED: "true"
+      DREAM_ENABLED: "true"
+      SUMMARY_ENABLED: "true"
+      EMBED_MESSAGES: "true"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2).read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    stop_grace_period: 10s
+
+  database:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: honcho
+      POSTGRES_PASSWORD: honcho
+      POSTGRES_USER: honcho
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U honcho -d honcho"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  pgdata:
