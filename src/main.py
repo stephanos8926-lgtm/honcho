@@ -129,6 +129,7 @@ async def lifespan(_: FastAPI):
     if settings.DERIVER.IN_PROCESS_MODE:
         in_process_deriver = InProcessQueueManager()
         await in_process_deriver.start()
+        app.state.in_process_deriver = in_process_deriver
         logger.info("In-process deriver started (IN_PROCESS_MODE=true)")
 
     try:
@@ -196,9 +197,25 @@ app.add_route("/metrics", metrics_endpoint, methods=["GET"])
 
 
 @app.get("/health")
-async def health_check():
-    """Health check endpoint for monitoring and container orchestration."""
-    return {"status": "ok"}
+async def health_check(request: Request):
+    """Health check endpoint for monitoring and container orchestration.
+    
+    When IN_PROCESS_MODE=true, includes in-process deriver status:
+    - deriver.status: healthy or degraded
+    - deriver.uptime_seconds: how long the deriver has been running
+    - deriver.pending_work_units: items waiting in the queue
+    """
+    health = {"status": "ok"}
+
+    # Include in-process deriver health if configured
+    if settings.DERIVER.IN_PROCESS_MODE:
+        deriver = getattr(request.app.state, "in_process_deriver", None)
+        if deriver:
+            health["deriver"] = deriver.status
+            if deriver.status.get("status") != "healthy":
+                health["status"] = "degraded"
+
+    return health
 
 
 # Global exception handlers
