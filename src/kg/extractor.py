@@ -15,10 +15,10 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.kg.extraction_schema import (
-    KG_EXTRACTION_SCHEMA,
-    validate_extraction_output,
-)
+from src.config import settings
+from src.kg.extraction_output import KGExtractionOutput
+from src.kg.extraction_prompt import KG_EXTRACTION_PROMPT
+from src.kg.extraction_schema import validate_extraction_output
 from src.kg.resolver import resolve_entity
 from src.kg.relationship_manager import create_or_update_relationship
 
@@ -133,30 +133,67 @@ async def extract_kg_from_message(
 async def _call_kg_llm(
     llm_client: Any,
     message_content: str,
-    schema: dict,
+    prompt_template: str = KG_EXTRACTION_PROMPT,
 ) -> dict:
     """Call the LLM for KG extraction with structured output.
     
-    Uses the same LLM client as the Deriver but with a custom extraction
-    schema. Timeout and retry are handled by the caller.
+    Uses Honcho's honcho_llm_call with KGExtractionOutput as the response_model.
+    This enforces the controlled vocabulary at the LLM API level via structured
+    output / response_format.
     
-    Returns parsed JSON matching the schema.
+    Args:
+        llm_client: Honcho LLM client (not used directly; honcho_llm_call uses
+                    the configured model internally)
+        message_content: The message text to extract entities/relationships from
+        prompt_template: The prompt template (overridable for customization)
+    
+    Returns:
+        dict matching KGExtractionOutput schema with entities and relationships
     
     Raises:
         TimeoutError: If the LLM call exceeds EXTRACTION_TIMEOUT_SECONDS
-        ValueError: If the LLM response doesn't match the schema
+        ValueError: If the response doesn't match the expected schema
     """
-    # TODO: Implement actual LLM call using Honcho's LLM client
-    # For now, this is a placeholder that will be filled in during
-    # Phase 2 integration with the Deriver pipeline.
-    #
-    # The call pattern will follow src/llm/ conventions:
-    #   response = await llm_client.chat.completions.create(
-    #       model=settings.DERIVER.MODEL_CONFIG.model,
-    #       messages=[{"role": "user", "content": prompt}],
-    #       response_format={"type": "json_object", "schema": schema},
-    #       timeout=EXTRACTION_TIMEOUT_SECONDS,
-    #   )
-    raise NotImplementedError(
-        "LLM extraction not yet integrated — see Phase 2 of KG implementation plan"
-    )
+    from src.llm import honcho_llm_call
+    from src.llm.types import LLMTelemetryContext
+    from src.telemetry.events.llm import CallPurpose
+    from src.deriver.deriver import _get_deriver_model_config
+
+    # Build the prompt
+    prompt = prompt_template.format(message=message_content)
+
+    # Get the deriver's model config (KG extraction uses the same model)
+    model_config = _get_deriver_model_config()
+    max_tokens = model_config.max_output_tokens or 4096
+
+    try:
+        response = await honcho_llm_call(
+            model_config=model_config,
+            prompt=prompt,
+            max_tokens=max_tokens,
+            response_model=KGExtractionOutput,
+            json_mode=True,
+            max_input_tokens=min(
+                len(message_content.split()),
+                settings.DERIVER.MAX_INPUT_TOKENS,
+            ),
+            enable_retry=True,
+            retry_attempts=MAX_RETRIES,
+            trace_name="kg_extraction",
+            telemetry=LLMTelemetryContext(
+                workspace_name="",
+                call_purpose=CallPurpose.DERIVER_REPRESENTATION.value,
+                parent_category="kg_extraction",
+                observed="",
+                track_name="KG Extraction",
+                trace_id="",
+                span_id="",
+            ),
+        )
+
+        # Convert Pydantic model to dict
+        return response.model_dump()
+
+    except Exception as e:
+        logger.warning("KG extraction LLM call failed: %s", e)
+        raise
