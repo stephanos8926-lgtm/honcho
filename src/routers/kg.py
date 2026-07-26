@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import schemas
-from src.dependencies import read_db
+from src.dependencies import get_read_db, tracked_db
 from src.exceptions import ResourceNotFoundException, ValidationException
 from src.kg.graph import find_path, subgraph, traverse
 from src.kg.models import KGEntity, KGRelationship
@@ -40,7 +40,7 @@ async def kg_traverse(
     after: datetime | None = Query(default=None),
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
     limit: int = Query(default=100, ge=1, le=500),
-    db_session: AsyncSession = Depends(read_db),
+    db_session: AsyncSession = Depends(get_read_db),
 ):
     """BFS traversal from an entity through the knowledge graph.
     
@@ -77,7 +77,7 @@ async def kg_search_entities(
     min_confidence: float = Query(default=0.0, ge=0.0, le=1.0),
     limit: int = Query(default=20, ge=1, le=100),
     include_dormant: bool = Query(default=False),
-    db_session: AsyncSession = Depends(read_db),
+    db_session: AsyncSession = Depends(get_read_db),
 ):
     """Fuzzy search for entities by name or alias.
     
@@ -137,7 +137,7 @@ async def kg_find_path(
     to: str = Query(..., min_length=1),
     max_depth: int = Query(default=5, ge=1, le=10),
     relationship_types: str | None = Query(default=None),
-    db_session: AsyncSession = Depends(read_db),
+    db_session: AsyncSession = Depends(get_read_db),
 ):
     """Find the shortest path between two entities."""
     parsed_types = (
@@ -165,7 +165,7 @@ async def kg_subgraph(
     entity: str = Query(..., min_length=1),
     depth: int = Query(default=2, ge=1, le=5),
     limit: int = Query(default=100, ge=1, le=500),
-    db_session: AsyncSession = Depends(read_db),
+    db_session: AsyncSession = Depends(get_read_db),
 ):
     """Export a subgraph neighborhood for visualization or caching."""
     result = await subgraph(
@@ -184,7 +184,7 @@ async def kg_peer_entities(
     peer_name: str = Query(..., min_length=1),
     relationship_types: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=500),
-    db_session: AsyncSession = Depends(read_db),
+    db_session: AsyncSession = Depends(get_read_db),
 ):
     """Find entities linked to a specific peer."""
     from sqlalchemy import select
@@ -232,7 +232,7 @@ async def kg_peer_entities(
 @router.post("/auto-link")
 async def kg_auto_link(
     workspace_id: str = Path(...),
-    db_session: AsyncSession = Depends(read_db),
+    db_session: AsyncSession = Depends(get_read_db),
 ):
     """Auto-link unlinked person/agent entities to workspace peers.
     
@@ -265,7 +265,7 @@ async def kg_update_entity(
     name: str | None = Query(default=None),
     entity_type: str | None = Query(default=None),
     peer_name: str | None = Query(default=None),
-    db_session: AsyncSession = Depends(read_db),
+    db_session: AsyncSession = Depends(get_read_db),
 ):
     """Update a KG entity's metadata (human correction endpoint).
     
