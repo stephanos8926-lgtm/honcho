@@ -140,6 +140,10 @@ async def lifespan(_: FastAPI):
             await in_process_deriver.stop()
             logger.info("In-process deriver stopped")
 
+        # Shutdown CPU-bound executor (used by in-process deriver)
+        from src.utils.cpu_executor import shutdown_executor
+        shutdown_executor()
+
         # Import here to avoid circular import at module load time
         from src.vector_store import close_external_vector_store
 
