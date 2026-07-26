@@ -14,6 +14,7 @@ from src import crud, models, schemas
 from src.config import settings
 from src.dependencies import tracked_db
 from src.embedding_client import embedding_client
+from src.kg.kg_query_tool import handle_kg_query
 from src.models import Document
 from src.schemas import ResolvedConfiguration
 from src.telemetry.events import (
@@ -531,6 +532,40 @@ TOOLS: dict[str, dict[str, Any]] = {
             "properties": {},
         },
     },
+    "kg_query": {
+        "name": "kg_query",
+        "description": (
+            "Query the Knowledge Graph to find relationships between entities "
+            "(services, tools, people, projects, concepts). Use this when the "
+            "user asks about how things connect or depend on each other."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "entity": {
+                    "type": "string",
+                    "description": "Starting entity name",
+                },
+                "query_type": {
+                    "type": "string",
+                    "enum": ["traverse", "find_path"],
+                },
+                "target_entity": {
+                    "type": "string",
+                    "description": "Required for find_path queries",
+                },
+                "max_depth": {
+                    "type": "integer",
+                    "default": 3,
+                },
+                "relationship_types": {
+                    "type": "string",
+                    "description": "Optional comma-separated filter",
+                },
+            },
+            "required": ["entity", "query_type"],
+        },
+    },
     "search_memory": {
         "name": "search_memory",
         "description": "Search for observations in memory using semantic similarity. Use this to find relevant information about the peer when you need to recall specific details.",
@@ -793,6 +828,7 @@ DIALECTIC_TOOLS: list[dict[str, Any]] = [
     TOOLS["get_messages_by_date_range"],  # For temporal/date-based queries
     TOOLS["search_messages_temporal"],  # Semantic search + date filtering
     TOOLS["get_reasoning_chain"],  # Traverse reasoning trees
+    TOOLS["kg_query"],  # Knowledge Graph entity-relationship queries
 ]
 
 # Minimal tools for dialectic agent at "minimal" reasoning level
@@ -2420,6 +2456,7 @@ _TOOL_HANDLERS: dict[str, Callable[[ToolContext, dict[str, Any]], Any]] = {
     "finish_consolidation": _handle_finish_consolidation,
     "extract_preferences": _handle_extract_preferences,
     "get_reasoning_chain": _handle_get_reasoning_chain,
+    "kg_query": handle_kg_query,
 }
 
 
