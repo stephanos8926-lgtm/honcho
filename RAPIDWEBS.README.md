@@ -94,18 +94,60 @@ validation with a dimension mismatch error.
 
 ---
 
-## P1 — Planned Improvements
+## P1 — Completed Features
 
-(Placeholder — improvements will be documented here as they are implemented.)
+### [2026-07-25/26] Knowledge Graph Overlay (SPEC-001 v3.0)
 
-### Reranker Integration in Message Search
-- **Status:** Planned
-- **Description:** After RRF fusion in `src/utils/search.py`, pass top-30
-  results through RW IE's `/v1/rerank` endpoint for better precision.
-- **Dependencies:** RW InferenceEngine running and accessible
+**Full feature:**
+- Entity/relationship extraction from messages via LLM structured output
+- 10 entity types + 10 relationship types (controlled vocabularies)
+- pg_trgm fuzzy matching for entity resolution
+- Confidence decay + dormant entity pruning
+- Peer→Entity linking
+- BFS traversal, path finding, subgraph export (3 graph query modes)
+- 7 API endpoints registered at `/v3/workspaces/{w}/kg/*`
+- `kg_query` Dialectic tool for agentic KG queries
 
-### Embedding Dimension Auto-Detection
-- **Status:** Planned
-- **Description:** Have the startup validator probe RW IE's `/health`
-  endpoint to auto-detect the embedding dimension rather than requiring
-  manual config.
+**Files:**
+- 19 source files in `src/kg/`, `src/routers/kg.py`, `src/schemas/kg.py`
+- Alembic migration `kg_001_add_kg_tables.py`
+- 3 test files in `tests/kg/`
+
+**Configuration:**
+- Requires `pg_trgm` PostgreSQL extension for fuzzy matching
+- KG tables created via Alembic migration (automatic on upgrade)
+- KG extraction uses same LLM model as Deriver (configurable)
+
+---
+
+### [2026-07-25/26] In-Process Deriver Mode (SPEC-002 v3.0)
+
+**Full feature:**
+- `DERIVER_IN_PROCESS_MODE=true` — runs deriver as background task in API process
+- `InProcessQueueManager` subclass of existing `QueueManager`
+- Skips signal handlers and Sentry init (API handles both)
+- Health check integration: deriver status in `/health` endpoint
+- CPU-bound executor for tokenization/serialization offloading
+- All existing behavior unchanged when `IN_PROCESS_MODE=false` (default)
+
+**Files:**
+- `src/deriver/in_process.py` — InProcessQueueManager implementation
+- `src/config.py` — IN_PROCESS_MODE + related configuration flags
+- `src/main.py` — lifespan hooks, health endpoint integration
+- `src/utils/cpu_executor.py` — shared ThreadPoolExecutor for CPU-bound work
+
+**Configuration:**
+```env
+DERIVER_IN_PROCESS_MODE=true
+# Optional:
+# DERIVER_IN_PROCESS_POLL_INTERVAL_SECONDS=0.5
+# DERIVER_IN_PROCESS_MAX_QUEUE_SIZE=1000
+# DERIVER_IN_PROCESS_WORK_UNIT_TIMEOUT_SECONDS=30.0
+```
+
+**Note:** The queue is PostgreSQL-backed (not Redis-backed). Redis is only
+used for session caching and degrades gracefully to in-memory when unavailable.
+
+---
+
+## P2 — Planned Improvements
