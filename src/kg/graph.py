@@ -18,9 +18,9 @@ from src.kg.models import KGEntity, KGRelationship
 logger = logging.getLogger(__name__)
 
 # Default traversal limits
-MAX_TRAVERSE_DEPTH = 10
+MAX_TRAVERSE_DEPTH = 6
 MAX_PATH_DEPTH = 10
-MAX_SUBGRAPH_DEPTH = 5
+MAX_SUBGRAPH_DEPTH = 3
 MAX_RESULTS = 500
 
 

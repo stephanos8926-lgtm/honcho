@@ -14,7 +14,17 @@ from src import crud, models, schemas
 from src.config import settings
 from src.dependencies import tracked_db
 from src.embedding_client import embedding_client
-from src.kg.kg_query_tool import handle_kg_query
+from src.kg.kg_query_tool import (
+    KG_ENTITY_SEARCH_TOOL,
+    KG_PEER_ENTITIES_TOOL,
+    KG_SUBGRAPH_TOOL,
+    KG_TRAVERSE_TOOL,
+    handle_kg_entity_search,
+    handle_kg_peer_entities,
+    handle_kg_query,
+    handle_kg_subgraph,
+    handle_kg_traverse,
+)
 from src.models import Document
 from src.schemas import ResolvedConfiguration
 from src.telemetry.events import (
@@ -566,6 +576,10 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["entity", "query_type"],
         },
     },
+    "kg_entity_search": KG_ENTITY_SEARCH_TOOL,
+    "kg_peer_entities": KG_PEER_ENTITIES_TOOL,
+    "kg_traverse": KG_TRAVERSE_TOOL,
+    "kg_subgraph": KG_SUBGRAPH_TOOL,
     "search_memory": {
         "name": "search_memory",
         "description": "Search for observations in memory using semantic similarity. Use this to find relevant information about the peer when you need to recall specific details.",
@@ -829,6 +843,10 @@ DIALECTIC_TOOLS: list[dict[str, Any]] = [
     TOOLS["search_messages_temporal"],  # Semantic search + date filtering
     TOOLS["get_reasoning_chain"],  # Traverse reasoning trees
     TOOLS["kg_query"],  # Knowledge Graph entity-relationship queries
+    TOOLS["kg_entity_search"],  # KG entity lookup by name/alias
+    TOOLS["kg_peer_entities"],  # KG entities linked to a peer
+    TOOLS["kg_traverse"],  # KG BFS graph walk
+    TOOLS["kg_subgraph"],  # KG neighborhood subgraph
 ]
 
 # Minimal tools for dialectic agent at "minimal" reasoning level
@@ -2457,6 +2475,10 @@ _TOOL_HANDLERS: dict[str, Callable[[ToolContext, dict[str, Any]], Any]] = {
     "extract_preferences": _handle_extract_preferences,
     "get_reasoning_chain": _handle_get_reasoning_chain,
     "kg_query": handle_kg_query,
+    "kg_entity_search": handle_kg_entity_search,
+    "kg_peer_entities": handle_kg_peer_entities,
+    "kg_traverse": handle_kg_traverse,
+    "kg_subgraph": handle_kg_subgraph,
 }
 
 
