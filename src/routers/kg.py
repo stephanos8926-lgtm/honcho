@@ -94,7 +94,7 @@ async def kg_search_entities(
     stmt = stmt.where(
         or_(
             KGEntity.name.ilike(f"%{q}%"),
-            KGEntity.aliases.any(q),
+            KGEntity.aliases.contains([q]),
         )
     )
 
