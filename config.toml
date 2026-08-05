@@ -1,0 +1,159 @@
+# Honcho config.toml — rw_inference embeddings + NVIDIA Free LLM
+[app]
+LOG_LEVEL = "INFO"
+EMBED_MESSAGES = true
+NAMESPACE = "honcho"
+
+[db]
+CONNECTION_URI = "postgresql+psycopg://honcho:honcho@localhost:5432/honcho"
+POOL_SIZE = 5
+MAX_OVERFLOW = 10
+POOL_PRE_PING = true
+SQL_DEBUG = false
+
+[auth]
+USE_AUTH = false
+
+[embedding]
+VECTOR_DIMENSIONS = 384
+MAX_INPUT_TOKENS = 8192
+MAX_TOKENS_PER_REQUEST = 300000
+
+[embedding.model_config]
+transport = "rw_inference"
+model = "bge-small-en-v1.5"
+
+[embedding.model_config.overrides]
+base_url = "http://127.0.0.1:8300/v1"
+api_key_env = "RW_IE_KEY"
+
+[deriver]
+ENABLED = true
+WORKERS = 1
+POLLING_SLEEP_INTERVAL_SECONDS = 2.0
+POLLING_STARTUP_JITTER_SECONDS = 5.0
+FLUSH_ENABLED = true
+IN_PROCESS_MODE = true
+DEDUPLICATE = true
+LOG_OBSERVATIONS = false
+STALE_SESSION_TIMEOUT_MINUTES = 30
+
+[deriver.model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[deriver.model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[peer_card]
+ENABLED = true
+
+[dialectic]
+MAX_OUTPUT_TOKENS = 8192
+MAX_INPUT_TOKENS = 100000
+HISTORY_TOKEN_LIMIT = 8192
+SESSION_HISTORY_MAX_TOKENS = 4096
+
+[dialectic.levels.minimal]
+MAX_TOOL_ITERATIONS = 1
+MAX_OUTPUT_TOKENS = 250
+TOOL_CHOICE = "auto"
+
+[dialectic.levels.minimal.model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[dialectic.levels.minimal.model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[dialectic.levels.low]
+MAX_TOOL_ITERATIONS = 5
+TOOL_CHOICE = "auto"
+
+[dialectic.levels.low.model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[dialectic.levels.low.model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[dialectic.levels.medium]
+MAX_TOOL_ITERATIONS = 2
+
+[dialectic.levels.medium.model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[dialectic.levels.medium.model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[dialectic.levels.high]
+MAX_TOOL_ITERATIONS = 4
+
+[dialectic.levels.high.model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[dialectic.levels.high.model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[dialectic.levels.max]
+MAX_TOOL_ITERATIONS = 10
+
+[dialectic.levels.max.model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[dialectic.levels.max.model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[summary]
+ENABLED = true
+MESSAGES_PER_SHORT_SUMMARY = 20
+MESSAGES_PER_LONG_SUMMARY = 60
+MAX_TOKENS_SHORT = 1000
+MAX_TOKENS_LONG = 4000
+
+[summary.model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[summary.model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[dream]
+ENABLED = true
+DOCUMENT_THRESHOLD = 50
+IDLE_TIMEOUT_MINUTES = 60
+MIN_HOURS_BETWEEN_DREAMS = 8
+ENABLED_TYPES = ["omni", "card_refresh"]
+MAX_TOOL_ITERATIONS = 20
+HISTORY_TOKEN_LIMIT = 16384
+
+[dream.deduction_model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[dream.deduction_model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[dream.induction_model_config]
+transport = "openai"
+model = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
+[dream.induction_model_config.overrides]
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+
+[vector_store]
+TYPE = "pgvector"
+MIGRATED = true
+NAMESPACE = "honcho"
