@@ -15,10 +15,6 @@ from src.config import settings
 from src.dependencies import tracked_db
 from src.embedding_client import embedding_client
 from src.kg.kg_query_tool import (
-    KG_ENTITY_SEARCH_TOOL,
-    KG_PEER_ENTITIES_TOOL,
-    KG_SUBGRAPH_TOOL,
-    KG_TRAVERSE_TOOL,
     handle_kg_entity_search,
     handle_kg_peer_entities,
     handle_kg_query,
@@ -576,10 +572,138 @@ TOOLS: dict[str, dict[str, Any]] = {
             "required": ["entity", "query_type"],
         },
     },
-    "kg_entity_search": KG_ENTITY_SEARCH_TOOL,
-    "kg_peer_entities": KG_PEER_ENTITIES_TOOL,
-    "kg_traverse": KG_TRAVERSE_TOOL,
-    "kg_subgraph": KG_SUBGRAPH_TOOL,
+    "kg_entity_search": {
+        "name": "kg_entity_search",
+        "description": (
+        "Search Knowledge Graph entities by name or alias (fuzzy match). "
+        "Use to discover what entities exist before traversing the graph. "
+        "Returns entity name, type, aliases, confidence, mention_count."
+        ),
+        "input_schema": {
+        "type": "object",
+        "properties": {
+            "query": {
+                "type": "string",
+                "description": "Entity name or alias to search (min 2 chars)",
+            },
+            "entity_type": {
+                "type": "string",
+                "description": "Filter by type (person, service, tool, project, concept, location, organization, event)",
+            },
+            "min_confidence": {
+                "type": "number",
+                "description": "Minimum confidence (0-1)",
+                "default": 0.3,
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Max results",
+                "default": 20,
+                "maximum": 100,
+            },
+        },
+        "required": ["query"],
+        },
+        },
+    "kg_peer_entities": {
+        "name": "kg_peer_entities",
+        "description": (
+        "Get all Knowledge Graph entities linked to a specific peer. "
+        "Shows what entities this peer has mentioned or is associated with. "
+        "Returns entity name, type, relationship type, confidence."
+        ),
+        "input_schema": {
+        "type": "object",
+        "properties": {
+            "peer_name": {
+                "type": "string",
+                "description": "Peer name to get entities for (e.g., 'sysop', 'hermes')",
+            },
+            "relationship_types": {
+                "type": "string",
+                "description": "Comma-separated relationship types to filter (e.g., 'manages,depends_on')",
+            },
+            "limit": {
+                "type": "integer",
+                "default": 50,
+                "maximum": 200,
+            },
+        },
+        "required": ["peer_name"],
+        },
+        },
+    "kg_traverse": {
+        "name": "kg_traverse",
+        "description": (
+        "Traverse the Knowledge Graph from a starting entity using "
+        "breadth-first search. Use when the user asks 'what connects to X?' "
+        "or 'how does X relate to Y?'. Max depth clamped to 6."
+        ),
+        "input_schema": {
+        "type": "object",
+        "properties": {
+            "entity": {
+                "type": "string",
+                "description": "Starting entity name or alias",
+            },
+            "max_depth": {
+                "type": "integer",
+                "description": "Max traversal hops (1-6)",
+                "default": 2,
+                "minimum": 1,
+                "maximum": 6,
+            },
+            "relationship_types": {
+                "type": "string",
+                "description": "Comma-separated relationship types to filter (e.g., 'depends_on,manages')",
+            },
+            "entity_types": {
+                "type": "string",
+                "description": "Comma-separated entity types to filter (e.g., 'service,tool')",
+            },
+            "min_confidence": {
+                "type": "number",
+                "default": 0.5,
+            },
+            "limit": {
+                "type": "integer",
+                "default": 50,
+                "maximum": 200,
+            },
+        },
+        "required": ["entity"],
+        },
+        },
+    "kg_subgraph": {
+        "name": "kg_subgraph",
+        "description": (
+        "Extract a neighborhood subgraph around an entity for context "
+        "injection or visualization. Returns entities + relationships "
+        "as a structured graph. Depth clamped to 3."
+        ),
+        "input_schema": {
+        "type": "object",
+        "properties": {
+            "entity": {
+                "type": "string",
+                "description": "Center entity name or alias",
+            },
+            "depth": {
+                "type": "integer",
+                "description": "Neighborhood depth (1-3)",
+                "default": 1,
+                "minimum": 1,
+                "maximum": 3,
+            },
+            "limit": {
+                "type": "integer",
+                "default": 100,
+                "maximum": 200,
+            },
+        },
+        "required": ["entity"],
+        },
+        },
     "search_memory": {
         "name": "search_memory",
         "description": "Search for observations in memory using semantic similarity. Use this to find relevant information about the peer when you need to recall specific details.",
